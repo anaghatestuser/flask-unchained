@@ -97,9 +97,10 @@ class BabelBundle(Bundle):
 
     def get_locale(self):
         languages = current_app.config.LANGUAGES
-        return g.get(
-            self.language_code_key, request.accept_languages.best_match(languages)
-        )
+        lang_code = g.get(self.language_code_key, None)
+        if lang_code in languages:
+            return lang_code
+        return request.accept_languages.best_match(languages)
 
     def set_url_defaults(self, endpoint: str, values: Dict[str, Any]):
         if self.language_code_key in values or not g.get(self.language_code_key, None):
@@ -110,7 +111,9 @@ class BabelBundle(Bundle):
 
     def lang_code_url_value_preprocessor(self, endpoint: str, values: Dict[str, Any]):
         if values is not None:
-            g.lang_code = values.pop(self.language_code_key, None)
+            lang_code = values.pop(self.language_code_key, None)
+            if lang_code in current_app.config.LANGUAGES:
+                g.lang_code = lang_code
 
 
 def gettext(*args, **kwargs):

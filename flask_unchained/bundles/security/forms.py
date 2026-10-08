@@ -54,11 +54,11 @@ def unique_user_email(form, field):
 
 
 def valid_user_email(form, field):
+    # Look up the user for the given email, but intentionally do not raise if
+    # no account exists. Failing differently depending on whether an email is
+    # registered would leak account existence (account enumeration). The views
+    # check `form.user` and respond the same either way.
     form.user = user_manager.get_by(email=field.data)
-    if form.user is None:
-        raise ValidationError(
-            _("flask_unchained.bundles.security:error.user_does_not_exist")
-        )
 
 
 class BaseForm(ModelForm):
@@ -257,13 +257,3 @@ class SendConfirmationForm(BaseForm):
         super(SendConfirmationForm, self).__init__(*args, **kwargs)
         if request.method == "GET":
             self.email.data = request.args.get("email", None)
-
-    def validate(self, extra_validators=()):
-        if not super().validate(extra_validators=extra_validators):
-            return False
-        if self.user.confirmed_at is not None:
-            self.email.errors.append(
-                _("flask_unchained.bundles.security:error.already_confirmed")
-            )
-            return False
-        return True

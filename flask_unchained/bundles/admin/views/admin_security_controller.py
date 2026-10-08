@@ -14,12 +14,17 @@ class AdminSecurityController(SecurityController):
     class Meta:
         template_folder = "admin"
 
-    @route(endpoint="admin.logout")
+    @route(endpoint="admin.logout", methods=["POST"])
     def logout(self):
         """
         View function to log a user out. Supports html and json requests.
+
+        Logging out changes server-side state, so it requires POST requests;
+        when the request is authenticated using the session cookie, a valid
+        CSRF token is also required.
         """
         if current_user.is_authenticated:
+            self._validate_csrf_token()
             self.security_service.logout_user()
 
         if request.is_json:

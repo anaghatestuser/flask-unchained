@@ -7,6 +7,7 @@ from flask_unchained import lazy_gettext as _
 from flask_unchained import route, url_for
 
 from ...security import SecurityService, UserManager, anonymous_user_required
+from ..exceptions import OAuthEmailError
 from ..extensions import OAuth
 from ..services import OAuthService
 
@@ -52,7 +53,13 @@ class OAuthController(Controller):
 
         session["oauth_token"] = resp["access_token"]
 
-        email, data = self.oauth_service.get_user_details(provider)
+        try:
+            email, data = self.oauth_service.get_user_details(provider)
+        except OAuthEmailError:
+            abort(
+                HTTPStatus.UNAUTHORIZED,
+                "The OAuth provider did not supply a verified email address",
+            )
         user, created = self.user_manager.get_or_create(
             email=email, defaults=data, commit=True
         )
@@ -60,8 +67,22 @@ class OAuthController(Controller):
             self.security_service.register_user(
                 user, _force_login_without_confirmation=True
             )
-        else:
+        elif not user.password:
+            # the account already exists, but has no local password set, which
+            # means it was created by a previous OAuth login - so OAuth is the
+            # only way to log in to it
             self.security_service.login_user(user, force=True)
+        else:
+            # the account already exists and has a local password. the email
+            # address asserted by the OAuth provider may be unverified (or the
+            # provider itself may be malicious), so it must not be trusted as
+            # proof of ownership of an existing password-based account. fail
+            # closed instead of force-logging the request into that account.
+            abort(
+                HTTPStatus.UNAUTHORIZED,
+                "This email address is already registered. "
+                "Please log in with your email and password.",
+            )
 
         self.oauth_service.on_authorized(provider)
         self.flash(_("flask_unchained.bundles.security:flash.login"), category="success")

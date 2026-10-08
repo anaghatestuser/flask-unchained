@@ -279,7 +279,12 @@ class Security(_SecurityConfigProperties):
         """
         header_key = self.token_authentication_header
         args_key = self.token_authentication_key
-        token = request.args.get(args_key, request.headers.get(header_key, None))
+        # NOTE: the authentication token is intentionally *not* read from the
+        # URL query string (request.args): URLs are recorded in server/proxy
+        # access logs, browser history, and leaked via the Referer header, so
+        # accepting credentials there would expose them. Only the HTTP header
+        # and the JSON request body are accepted as token sources.
+        token = request.headers.get(header_key, None)
         if request.is_json:
             data = request.get_json(silent=True) or {}
             token = data.get(args_key, token)

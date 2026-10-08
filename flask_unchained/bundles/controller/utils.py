@@ -246,9 +246,13 @@ def redirect(
         **values,
     )
 
+    # the next value in query strings or forms is user-supplied input, so it
+    # must only ever be treated as a plain url -- never resolved as a config
+    # key or endpoint name (that would leak config values into the Location
+    # header, and unknown names would raise an uncaught BuildError)
     urls = [
-        url_for(unquote(request.args.get("next", "")), **flask_url_for_kwargs),
-        url_for(unquote_plus(request.form.get("next", "")), **flask_url_for_kwargs),
+        unquote(request.args.get("next", "")),
+        unquote_plus(request.form.get("next", "")),
     ]
     if where:
         urls.append(url_for(where, _cls=_cls, **flask_url_for_kwargs))
