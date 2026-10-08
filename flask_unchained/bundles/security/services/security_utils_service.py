@@ -172,7 +172,10 @@ class SecurityUtilsService(Service):
             token, "reset", "SECURITY_RESET_PASSWORD_WITHIN", return_data=True
         )
 
-        if not invalid and user.password and not self.verify_hash(data[1], user.password):
+        if not invalid and (
+            user is None
+            or (user.password and not self.verify_hash(data[1], user.password))
+        ):
             invalid = True
 
         return expired, invalid, user
